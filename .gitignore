@@ -1,0 +1,6 @@
+/manager
+/watcher
+/manager.yml
+/watcher.yml
+dist
+.DS_Store

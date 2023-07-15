@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -12,6 +11,7 @@ import (
 
 	"github.com/strlght/namepal/pkg/types"
 
+	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v3"
 )
 
@@ -41,25 +41,25 @@ func Register(w http.ResponseWriter, r *http.Request) {
 
 	body, err := ParseRequestBody(r)
 	if err != nil {
-		fmt.Printf("error parsing request body: %s\n", err)
+		log.Fatalf("error parsing request body: %s\n", err)
 		return
 	}
 	ip := ExtractIP(r)
 	entries, err := FetchCurrentDomains()
 	if err != nil {
-		fmt.Printf("error fetching current domains: %s\n", err)
+		log.Fatalf("error fetching current domains: %s\n", err)
 		return
 	}
 
 	err = RemoveOutdatedDomains(ip, entries, &body.Data)
 	if err != nil {
-		fmt.Printf("error removing outdated domains: %s\n", err)
+		log.Fatalf("error removing outdated domains: %s\n", err)
 		return
 	}
 
 	err = SubmitNewDomains(ip, &body.Data)
 	if err != nil {
-		fmt.Printf("error submitting new domains: %s\n", err)
+		log.Fatalf("error submitting new domains: %s\n", err)
 		return
 	}
 }
@@ -77,9 +77,11 @@ func RemoveOutdatedDomains(ip string, currentEntries *[]types.DnsEntry, requeste
 		usesCurrentIP := entry.IP == ip
 		shouldDelete := (usesCurrentIP && !found) || (!usesCurrentIP && found)
 		if shouldDelete {
+			log.Infof("deleting outdated entry: %s %s", entry.IP, entry.Domain)
 			deleteURL := BuildDeleteURL(config.Pihole, entry.Domain, entry.IP)
 			_, err := http.Get(deleteURL)
 			if err != nil {
+				log.Infof("failed to delete outdated entry: %s", err)
 				return err
 			}
 		}
@@ -89,9 +91,11 @@ func RemoveOutdatedDomains(ip string, currentEntries *[]types.DnsEntry, requeste
 
 func SubmitNewDomains(ip string, domains *[]string) error {
 	for _, domain := range *domains {
+		log.Infof("adding new entry: %s %s", ip, domain)
 		addURL := BuildAddURL(config.Pihole, domain, ip)
 		_, err := http.Get(addURL)
 		if err != nil {
+			log.Infof("failed to delete outdated entry: %s", err)
 			return err
 		}
 	}
@@ -139,35 +143,35 @@ func ParseRequestBody(r *http.Request) (*types.DnsUpdateBody, error) {
 	return body, nil
 }
 
-func BuildRequestURL(config PiholeConfig) string {
+func BuildPiholeUrl(config PiholeConfig, modifier func(*url.Values)) string {
 	baseURL := config.URL
 	v := url.Values{}
 	v.Set("auth", config.Token)
-	v.Set("action", "get")
 	v.Set("customdns", "")
+	modifier(&v)
 	return baseURL + "?" + v.Encode()
+}
+
+func BuildRequestURL(config PiholeConfig) string {
+	return BuildPiholeUrl(config, func(v *url.Values) {
+		v.Set("action", "get")
+	})
 }
 
 func BuildAddURL(config PiholeConfig, domain string, IP string) string {
-	baseURL := config.URL
-	v := url.Values{}
-	v.Set("auth", config.Token)
-	v.Set("action", "add")
-	v.Set("customdns", "")
-	v.Set("domain", domain)
-	v.Set("ip", IP)
-	return baseURL + "?" + v.Encode()
+	return BuildPiholeUrl(config, func(v *url.Values) {
+		v.Set("action", "add")
+		v.Set("domain", domain)
+		v.Set("ip", IP)
+	})
 }
 
 func BuildDeleteURL(config PiholeConfig, domain string, IP string) string {
-	baseURL := config.URL
-	v := url.Values{}
-	v.Set("auth", config.Token)
-	v.Set("action", "delete")
-	v.Set("customdns", "")
-	v.Set("domain", domain)
-	v.Set("ip", IP)
-	return baseURL + "?" + v.Encode()
+	return BuildPiholeUrl(config, func(v *url.Values) {
+		v.Set("action", "delete")
+		v.Set("domain", domain)
+		v.Set("ip", IP)
+	})
 }
 
 func ExtractIP(r *http.Request) string {
@@ -180,15 +184,19 @@ func ExtractIP(r *http.Request) string {
 }
 
 func main() {
+	log.SetFormatter(&log.TextFormatter{})
+	log.SetOutput(os.Stdout)
+	log.SetLevel(log.InfoLevel)
+
 	ymlConfig, err := ioutil.ReadFile("manager.yml")
 	err = yaml.Unmarshal(ymlConfig, &config)
 
 	http.HandleFunc("/api/register", Register)
 	err = http.ListenAndServe(":8000", nil)
 	if errors.Is(err, http.ErrServerClosed) {
-		fmt.Printf("server closed\n")
+		log.Info("server closed\n")
 	} else if err != nil {
-		fmt.Printf("error starting server: %s\n", err)
+		log.Fatalf("error starting server: %s\n", err)
 		os.Exit(1)
 	}
 }

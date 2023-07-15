@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"os"
 
+	log "github.com/sirupsen/logrus"
 	"github.com/strlght/namepal/pkg/config"
 	"github.com/strlght/namepal/pkg/provider"
 	"github.com/strlght/namepal/pkg/provider/docker"
@@ -23,6 +25,10 @@ type CommonConfig struct {
 }
 
 func main() {
+	log.SetFormatter(&log.TextFormatter{})
+	log.SetOutput(os.Stdout)
+	log.SetLevel(log.InfoLevel)
+
 	watcherConfig := Config{}
 	ymlConfig, err := ioutil.ReadFile("watcher.yml")
 	err = yaml.Unmarshal(ymlConfig, &watcherConfig)

@@ -10,6 +10,7 @@ import (
 	dockertypes "github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/client"
+	log "github.com/sirupsen/logrus"
 )
 
 type DockerProvider struct {
@@ -28,10 +29,6 @@ func (p DockerProvider) Init() error {
 func (p DockerProvider) Provide(paramsChan chan<- config.Params) error {
 	ctx := context.Background()
 	p.client.NegotiateAPIVersion(ctx)
-	containers, err := p.client.ContainerList(context.Background(), dockertypes.ContainerListOptions{})
-	if err != nil {
-		panic(err)
-	}
 
 	labelRegexp := regexp.MustCompile("traefik.http.routers.\\w+.rule")
 	hostRegexp := regexp.MustCompile("Host\\(`(.+)`\\)")
@@ -43,16 +40,22 @@ func (p DockerProvider) Provide(paramsChan chan<- config.Params) error {
 	}
 
 	startStopHandle := func() {
+		containers, err := p.client.ContainerList(ctx, dockertypes.ContainerListOptions{})
+		if err != nil {
+			panic(err)
+		}
+
 		domains := make([]string, 0)
 		for _, container := range containers {
 			id := container.ID[:10]
-			result, err := p.client.ContainerInspect(context.Background(), id)
+			result, err := p.client.ContainerInspect(ctx, id)
 			if err != nil {
-				continue
+				panic(err)
 			}
 
 			for key, value := range result.Config.Labels {
 				if labelRegexp.MatchString(key) && hostRegexp.MatchString(value) {
+					log.Debugf("found matching container: %s", id)
 					subMatches := hostRegexp.FindStringSubmatch(value)
 					domains = append(domains, subMatches[1])
 				}
@@ -76,7 +79,7 @@ func (p DockerProvider) Provide(paramsChan chan<- config.Params) error {
 				strings.HasPrefix(event.Action, "health_status") {
 				startStopHandle()
 			}
-		case err = <-errc:
+		case err := <-errc:
 			return err
 		case <-ctx.Done():
 			return nil

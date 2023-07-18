@@ -71,11 +71,11 @@ func main() {
 
 		err = piholeUpdater.Init()
 		if err != nil {
-			log.Fatalf("failed to initialize pihole updater: %s\n", err)
+			log.Fatalf("failed to initialize pihole updater: %s", err)
 			os.Exit(1)
 		}
 	} else {
-		log.Fatal("updater should be defined in config\n")
+		log.Fatal("updater should be defined in config")
 		os.Exit(1)
 	}
 
@@ -86,23 +86,23 @@ func main() {
 
 		body, err := ParseRequestBody(r)
 		if err != nil {
-			log.Fatalf("error parsing request body: %s\n", err)
+			log.Fatalf("error parsing request body: %s", err)
 			return
 		}
 		ip := ExtractIP(r)
 
 		err = updater.UpdateDNSRecords(ip, &body.Data)
 		if err != nil {
-			log.Fatalf("failed updating DNS records: %s\n", err)
+			log.Fatalf("failed updating DNS records: %s", err)
 			return
 		}
 	})
 
 	err = http.ListenAndServe(":8000", nil)
 	if errors.Is(err, http.ErrServerClosed) {
-		log.Info("server closed\n")
+		log.Info("server closed")
 	} else if err != nil {
-		log.Fatalf("error starting server: %s\n", err)
+		log.Fatalf("error starting server: %s", err)
 		os.Exit(1)
 	}
 }

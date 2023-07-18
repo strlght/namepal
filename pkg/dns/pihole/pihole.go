@@ -26,19 +26,19 @@ func (p *PiholeUpdater) Init() error {
 func (p *PiholeUpdater) UpdateDNSRecords(ip string, domains *[]string) error {
 	entries, err := p.fetchCurrentDomains()
 	if err != nil {
-		log.Fatalf("error fetching current domains: %s\n", err)
+		log.Fatalf("error fetching current domains: %s", err)
 		return err
 	}
 
 	err = p.removeOutdatedDomains(ip, entries, domains)
 	if err != nil {
-		log.Fatalf("error removing outdated domains: %s\n", err)
+		log.Fatalf("error removing outdated domains: %s", err)
 		return err
 	}
 
 	err = p.submitNewDomains(ip, domains)
 	if err != nil {
-		log.Fatalf("error submitting new domains: %s\n", err)
+		log.Fatalf("error submitting new domains: %s", err)
 		return err
 	}
 	return nil

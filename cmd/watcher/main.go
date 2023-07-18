@@ -65,7 +65,7 @@ func main() {
 		params := <-paramsChan
 		err = register(watcherConfig, &params.Configuration.Domains)
 		if err != nil {
-			log.Errorf("failed to register new domains: %s\n", err)
+			log.Errorf("failed to register new domains: %s", err)
 		}
 	}
 }

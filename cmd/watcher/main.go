@@ -24,6 +24,22 @@ type CommonConfig struct {
 	Endpoint string `yaml:"endpoint"`
 }
 
+func register(config Config, domains *[]string) error {
+	registerURL := fmt.Sprintf("%s/api/register", config.Common.Endpoint)
+	body := types.DnsUpdateBody{
+		Data: *domains,
+	}
+	bodyJSON, err := json.Marshal(body)
+	if err != nil {
+		return err
+	}
+	_, err = http.Post(registerURL, "application/json", bytes.NewBuffer(bodyJSON))
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func main() {
 	log.SetFormatter(&log.TextFormatter{})
 	log.SetOutput(os.Stdout)
@@ -45,13 +61,11 @@ func main() {
 
 	go provider.Provide(paramsChan)
 
-	registerURL := fmt.Sprintf("%s/api/register", watcherConfig.Common.Endpoint)
 	for {
 		params := <-paramsChan
-		body := types.DnsUpdateBody{
-			Data: params.Configuration.Domains,
+		err = register(watcherConfig, &params.Configuration.Domains)
+		if err != nil {
+			log.Errorf("failed to register new domains: %s\n", err)
 		}
-		bodyJSON, _ := json.Marshal(body)
-		http.Post(registerURL, "application/json", bytes.NewBuffer(bodyJSON))
 	}
 }

@@ -1,0 +1,5 @@
+dist/
+.idea/
+.git/
+.github/
+*.Dockerfile

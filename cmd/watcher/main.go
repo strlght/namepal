@@ -24,15 +24,22 @@ type CommonConfig struct {
 	Endpoint string `yaml:"endpoint"`
 }
 
-func register(config Config, domains *[]string) error {
+func register(config *Config, domains *[]string) error {
+	if len(*domains) == 0 {
+		log.Debug("received empty domains list")
+		return nil
+	}
+
 	registerURL := fmt.Sprintf("%s/api/register", config.Common.Endpoint)
 	body := types.DnsUpdateBody{
 		Data: *domains,
 	}
+
 	bodyJSON, err := json.Marshal(body)
 	if err != nil {
 		return err
 	}
+
 	_, err = http.Post(registerURL, "application/json", bytes.NewBuffer(bodyJSON))
 	if err != nil {
 		return err
@@ -40,32 +47,58 @@ func register(config Config, domains *[]string) error {
 	return nil
 }
 
-func main() {
-	log.SetFormatter(&log.TextFormatter{})
-	log.SetOutput(os.Stdout)
-	log.SetLevel(log.InfoLevel)
-
+func parseConfig() (*Config, error) {
 	watcherConfig := Config{}
 	ymlConfig, err := ioutil.ReadFile("watcher.yml")
-	err = yaml.Unmarshal(ymlConfig, &watcherConfig)
-
-	var provider provider.Provider
-
-	provider = docker.DockerProvider{}
-	err = provider.Init()
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
+	err = yaml.Unmarshal(ymlConfig, &watcherConfig)
+	if err != nil {
+		return nil, err
+	}
+	return &watcherConfig, nil
+}
 
+func createProvider(config *Config) (provider.Provider, error) {
+	provider := docker.DockerProvider{}
+	err := provider.Init()
+	if err != nil {
+		return nil, err
+	}
+	return provider, nil
+}
+
+func loop(watcherConfig *Config, provider provider.Provider) {
 	paramsChan := make(chan config.Params)
 
 	go provider.Provide(paramsChan)
 
 	for {
 		params := <-paramsChan
-		err = register(watcherConfig, &params.Configuration.Domains)
+		err := register(watcherConfig, &params.Configuration.Domains)
 		if err != nil {
 			log.Errorf("failed to register new domains: %s", err)
 		}
 	}
+}
+
+func main() {
+	log.SetFormatter(&log.TextFormatter{})
+	log.SetOutput(os.Stdout)
+	log.SetLevel(log.InfoLevel)
+
+	watcherConfig, err := parseConfig()
+	if err != nil {
+		log.Fatalf("failed to process config: %s", err)
+		os.Exit(1)
+	}
+
+	provider, err := createProvider(watcherConfig)
+	if err != nil {
+		log.Fatalf("failed to create provider: %s", err)
+		os.Exit(1)
+	}
+
+	loop(watcherConfig, provider)
 }

@@ -51,31 +51,50 @@ func ExtractIP(r *http.Request) string {
 	}
 }
 
+func parseConfig() (*Config, error) {
+	var config Config
+	ymlConfig, err := ioutil.ReadFile("manager.yml")
+	if err != nil {
+		return nil, err
+	}
+	err = yaml.Unmarshal(ymlConfig, &config)
+	if err != nil {
+		return nil, err
+	}
+	return &config, nil
+}
+
+func createUpdater(config *Config) (dns.Updater, error) {
+	if config.Pihole != nil {
+		piholeUpdater := pihole.PiholeUpdater{}
+
+		piholeUpdater.SetToken(config.Pihole.Token)
+		piholeUpdater.SetURL(config.Pihole.URL)
+
+		err := piholeUpdater.Init()
+		if err != nil {
+			return nil, err
+		}
+		return &piholeUpdater, nil
+	}
+
+	return nil, errors.New("updater should be defined in config")
+}
+
 func main() {
 	log.SetFormatter(&log.TextFormatter{})
 	log.SetOutput(os.Stdout)
 	log.SetLevel(log.InfoLevel)
 
-	var config Config
-	ymlConfig, err := ioutil.ReadFile("manager.yml")
-	err = yaml.Unmarshal(ymlConfig, &config)
+	config, err := parseConfig()
+	if err != nil {
+		log.Fatalf("failed to process config: %s", err)
+		os.Exit(1)
+	}
 
-	var updater dns.Updater
-
-	if config.Pihole != nil {
-		piholeUpdater := pihole.PiholeUpdater{}
-		updater = &piholeUpdater
-
-		piholeUpdater.SetToken(config.Pihole.Token)
-		piholeUpdater.SetURL(config.Pihole.URL)
-
-		err = piholeUpdater.Init()
-		if err != nil {
-			log.Fatalf("failed to initialize pihole updater: %s", err)
-			os.Exit(1)
-		}
-	} else {
-		log.Fatal("updater should be defined in config")
+	updater, err := createUpdater(config)
+	if err != nil {
+		log.Fatalf("failed to create updater: %s", err)
 		os.Exit(1)
 	}
 

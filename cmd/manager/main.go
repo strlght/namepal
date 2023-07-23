@@ -81,11 +81,13 @@ func createUpdater(config *Config) (dns.Updater, error) {
 	return nil, errors.New("updater should be defined in config")
 }
 
-func main() {
+func init() {
 	log.SetFormatter(&log.TextFormatter{})
 	log.SetOutput(os.Stdout)
 	log.SetLevel(log.InfoLevel)
+}
 
+func main() {
 	config, err := parseConfig()
 	if err != nil {
 		log.Fatalf("failed to process config: %s", err)

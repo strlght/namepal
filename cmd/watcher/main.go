@@ -83,11 +83,13 @@ func loop(watcherConfig *Config, provider provider.Provider) {
 	}
 }
 
-func main() {
+func init() {
 	log.SetFormatter(&log.TextFormatter{})
 	log.SetOutput(os.Stdout)
 	log.SetLevel(log.InfoLevel)
+}
 
+func main() {
 	watcherConfig, err := parseConfig()
 	if err != nil {
 		log.Fatalf("failed to process config: %s", err)

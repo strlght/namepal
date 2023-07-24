@@ -6,12 +6,12 @@ RUN apk add --no-cache musl-dev git gcc
 ADD . /src
 WORKDIR /src
 ENV GO111MODULE=on
-RUN cd cmd/watcher && go env && go build -v
+RUN cd cmd/agent && go env && go build -v
 
 FROM alpine:latest
 
 WORKDIR /app/
-COPY --from=builder /src/cmd/watcher/watcher .
+COPY --from=builder /src/cmd/agent/agent .
 
-ENTRYPOINT ["/app/watcher"]
+ENTRYPOINT ["/app/agent"]
 

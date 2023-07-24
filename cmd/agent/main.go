@@ -48,16 +48,16 @@ func register(config *Config, domains *[]string) error {
 }
 
 func parseConfig() (*Config, error) {
-	watcherConfig := Config{}
-	ymlConfig, err := ioutil.ReadFile("watcher.yml")
+	agentConfig := Config{}
+	ymlConfig, err := ioutil.ReadFile("agent.yml")
 	if err != nil {
 		return nil, err
 	}
-	err = yaml.Unmarshal(ymlConfig, &watcherConfig)
+	err = yaml.Unmarshal(ymlConfig, &agentConfig)
 	if err != nil {
 		return nil, err
 	}
-	return &watcherConfig, nil
+	return &agentConfig, nil
 }
 
 func createProvider(config *Config) (provider.Provider, error) {
@@ -69,14 +69,14 @@ func createProvider(config *Config) (provider.Provider, error) {
 	return provider, nil
 }
 
-func loop(watcherConfig *Config, provider provider.Provider) {
+func loop(agentConfig *Config, provider provider.Provider) {
 	paramsChan := make(chan config.Params)
 
 	go provider.Provide(paramsChan)
 
 	for {
 		params := <-paramsChan
-		err := register(watcherConfig, &params.Configuration.Domains)
+		err := register(agentConfig, &params.Configuration.Domains)
 		if err != nil {
 			log.Errorf("failed to register new domains: %s", err)
 		}
@@ -90,17 +90,17 @@ func init() {
 }
 
 func main() {
-	watcherConfig, err := parseConfig()
+	agentConfig, err := parseConfig()
 	if err != nil {
 		log.Fatalf("failed to process config: %s", err)
 		os.Exit(1)
 	}
 
-	provider, err := createProvider(watcherConfig)
+	provider, err := createProvider(agentConfig)
 	if err != nil {
 		log.Fatalf("failed to create provider: %s", err)
 		os.Exit(1)
 	}
 
-	loop(watcherConfig, provider)
+	loop(agentConfig, provider)
 }

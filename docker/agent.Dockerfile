@@ -9,6 +9,7 @@ ENV GO111MODULE=on
 RUN cd cmd/agent && go env && go build -v
 
 FROM alpine:latest
+LABEL org.opencontainers.image.source https://github.com/strlght/namepal
 
 WORKDIR /app/
 COPY --from=builder /src/cmd/agent/agent .

@@ -8,7 +8,7 @@ WORKDIR /src
 ENV GO111MODULE=on
 RUN cd cmd/agent && go env && go build -v
 
-FROM alpine:latest
+FROM alpine:3.18.2
 LABEL org.opencontainers.image.source https://github.com/strlght/namepal
 
 WORKDIR /app/

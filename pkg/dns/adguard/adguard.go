@@ -9,7 +9,6 @@ import (
 	"github.com/strlght/namepal/pkg/types"
 )
 
-
 type AdguardUpdater struct {
 	url   string
 	token string
@@ -75,4 +74,3 @@ func (a *AdguardUpdater) fetchCurrentDomains() (*[]types.DnsEntry, error) {
 func (a *AdguardUpdater) buildRequestURL() string {
 	return a.url + "/rewrite/list"
 }
-
